@@ -64,7 +64,8 @@ function! test#rust#cargotest#build_position(type, position) abort
           let l:test_options = [l:test_options]
         endif
       endif
-      return l:package + [shellescape(l:namespace.l:test_name)] + l:test_options
+      " return l:package + [shellescape(l:namespace.l:test_name)] + l:test_options
+      return [shellescape(l:namespace.l:test_name)] + l:test_options
     elseif a:type ==# 'file'
       if type(g:test#rust#cargotest#test_options) == 4 " dict
         let l:test_options = has_key(g:test#rust#cargotest#test_options, 'file') ?
@@ -141,7 +142,7 @@ function! s:test_namespace(filename) abort
   if l:modules[0] == 'tests' && len(l:modules) == 2
     return [l:package, '']
   else
-    let l:modules = l:modules[1:]
+    let l:modules = l:modules[2:]
     if len(l:modules) > 0
       return [l:package, join(l:modules, '::') . '::']
     else

@@ -23,7 +23,7 @@ runners are supported:
 | -------------: | :----------------------------------------------------------------------------------------------------------------- | :------------------------------------------------------------------------------------------------------------------------------------------- |
 |         **C#** | .NET                                                                                                               | `xunit`, `dotnettest`                                                                                                                        |
 |         **C++** | CTest,Make                                                                                                               | `ctest`, `make`                                                                                                                        |
-|    **Clojure** | Fireplace.vim                                                                                                      | `fireplacetest`                                                                                                                              |
+|    **Clojure** | Fireplace.vim, Leiningen                                                                                           | `fireplacetest`, `leintest`                                                                                                                  |
 |    **Crystal** | Crystal                                                                                                            | `crystalspec`                                                                                                                                |
 |       **Dart** | Dart Test, Flutter Test                                                                                            | `darttest`, `fluttertest`
 |     **Elixir** | ESpec, ExUnit                                                                                                      | `espec`, `exunit`                                                                                                                            |
@@ -31,7 +31,7 @@ runners are supported:
 |     **Erlang** | CommonTest, EUnit, PropEr                                                                                          | `commontest`, `eunit`, `proper`                                                                                                              |
 |         **Go** | Ginkgo, Go, Rich-Go, Delve                                                                                         | `ginkgo`, `gotest`, `richgo`, `delve`                                                                                                        |
 |     **Groovy** | Maven, Gradle                                                                                                      | `maventest`, `gradletest`                                                                                                                    |
-|    **Haskell** | stack                                                                                                              | `stacktest`                                                                                                                                  |
+|    **Haskell** | stack, cabal                                                                                                       | `stacktest`, `cabaltest`                                                                                                                     |
 |       **Java** | Maven, Gradle (Groovy and Kotlin DSL)                                                                              | `maventest`, `gradletest`                                                                                                                    |
 | **JavaScript** | Ava, Cucumber.js, Cypress, Deno, Ember, Intern, Jasmine, Jest, Karma, Lab, Mocha, ng test, NX, Playwright, ReactScripts, TAP, Teenytest, WebdriverIO | `ava`, `cucumberjs`, `cypress`, `deno`, `ember exam`, `intern`, `jasmine`, `jest`, `karma`, `lab`, `mocha`, `ngtest` , `nx`, `playwright`, `reactscripts`, `tap`, `teenytest`, `webdriverio`, `vue-test-utils`, `vitest`|
 |     **Kotlin** | Gradle (Groovy and Kotlin DSL)                                                                                     | `gradletest`                                                                                                                                 |
@@ -48,6 +48,7 @@ runners are supported:
 |      **Shell** | Bats, ShellSpec                                                                                                    | `bats`, `shellspec`                                                                                                                          |
 |      **Swift** | Swift Package Manager                                                                                              | `swiftpm`                                                                                                                                    |
 |  **VimScript** | Vader.vim, Vroom, VSpec, Themis, Testify                                                                           | `vader`, `vroom`, `vspec`, `themis`, `testify`                                                                                               |
+|        **Zig** | ZigTest                                                                                                            | `zigtest`                                                                                                                                    |
 
 ## Setup
 
@@ -91,6 +92,7 @@ let test#strategy = "dispatch"
 | **Basic**&nbsp;(default)        | `basic`                                                     | Runs test commands with `:!` on Vim, and with `:terminal` on Neovim.                                                                                              |
 | **Make**                        | `make` `make_bang`                                          | Runs test commands with `:make` or `:make!`.                                                                                                                      |
 | **Neovim**                      | `neovim`                                                    | Runs test commands with `:terminal` in a split window.                                                                                                            |
+| **Neovim sticky**               | `neovim_sticky`                                             | Runs test commands with `:terminal` in a split window, but keeps it open for subsequent runs.                                                                     |
 | **Vim8 Terminal**               | `vimterminal`                                               | Runs test commands with `term_start()` in a split window.                                                                                                         |
 | **[Dispatch]**                  | `dispatch` `dispatch_background`                            | Runs test commands with `:Dispatch` or `:Dispatch!`.                                                                                                              |
 | **[Vimux]**                     | `vimux`                                                     | Runs test commands in a small tmux pane at the bottom of your terminal.                                                                                           |
@@ -164,6 +166,15 @@ disable this behavior with:
 
 ```vim
 let g:test#echo_command = 0
+```
+
+With the Neovim sticky strategy, if an additional test run is requested before
+the previous one has finished, it will either wait or fail to run at all.
+You can customize this behavior with the following options:
+
+```vim
+let g:test#neovim_sticky#kill_previous = 1  " Try to abort previous run
+let g:test#preserve_screen = 0  " Clear screen from previous run
 ```
 
 ### Kitty strategy setup
@@ -480,6 +491,44 @@ nnoremap <silent><leader>itf :IntegrationTest -Dtest=foo -DfailIfNoTests=false -
 
 The above command makes sure that no surefire tests will be run (by passing in a dummy test and makes sure that the plugin won't fail), it also makes the dependent modules, skips PMD and checkstyle checks as well.
 
+Only for maven, the commands `:TestFile` and `:TestNearest` use the same strategy and you can use them to run the integration tests from file or method.
+
+They use `mvn verify` if the filename ends with *IT, *ITCase or *Integration. The most common plugins are skipped in this strategy to improve the test time.
+
+* Sonar
+* PIT
+* Jacoco
+* Checkstyle
+* PMD
+* DependencyCheck
+
+```sh
+mvn verify -Dsonar.skip=true -Dpit.report.skip=true -Dpit.skip=true -Dpmd.skip=true -Dcheckstyle.skip=true -Ddependency-check.skip=true -Djacoco.skip=true -Dfailsafe.only=true
+```
+
+Also, the parameter `-Dfailsafe.only` is added to the command by vim-test, so you can use it to configure other things in the pom.xml, for example to avoid surefire tests:
+
+```xml
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-surefire-plugin</artifactId>
+                <version>${surefire.version}</version>
+                <configuration>
+                    <skipTests>${failsafe.only}</skipTests>
+                ....
+                </configuration>
+                ...
+            </plugin>
+```
+
+And keep the parameter `-DskipTests` working as expected:
+
+```xml
+    <properties>
+        <failsafe.only>${skipTests}</failsafe.only>
+    </properties>
+```
+
 #### Scala
 
 For the same reason as Python, runner detection works the same for Scala. To
@@ -562,7 +611,20 @@ let g:test#javascript#runner = 'jest'
 
 #### Haskell
 
-The `stackTest` runner currently supports running tests in Stack projects with the [HSpec](http://hackage.haskell.org/package/hspec) framework.
+The `stacktest` runner is used by default. You can switch to `cabaltest` like so:
+
+```vim
+let g:test#haskell#runner = 'cabaltest'
+```
+
+You can pass additional arguments to the test runner by setting its `test_command`. Here's an example for cabal:
+
+```vim
+let g:test#haskell#cabaltest#test_command = 'test --test-show-details=direct'
+```
+
+The runners currently supports running tests with the [HSpec](http://hackage.haskell.org/package/hspec) framework.
+
 
 #### PHP
 
@@ -746,3 +808,4 @@ Copyright © Janko Marohnić. Distributed under the same terms as Vim itself. Se
 [Shtuff]: https://github.com/jfly/shtuff
 [Harpoon]: https://github.com/ThePrimeagen/harpoon
 [Ember.js]: https://github.com/emberjs/ember.js
+[Toggleterm]: https://github.com/akinsho/toggleterm.nvim
